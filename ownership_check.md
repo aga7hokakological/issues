@@ -1,9 +1,5 @@
 SIGNER AUTHORIZATION:
 
-//TODO: Proper formatting
-
-//TODO: Adding github code link & tests
-
 A "missing owner check" vulnerability in the context of Solana Anchor refers to a situation where a program does not properly validate the ownership of an account before allowing certain operations to be performed on that account. This can lead to unauthorized access or manipulation of accounts by malicious actors, which can have serious security and financial implications.
 
 1. Improper Ownership Validation: In Solana Anchor programs, each account is associated with a specific owner, usually identified by a public key. Programs often need to verify that the caller or initiator of an operation has the necessary ownership rights over a particular account.
@@ -66,7 +62,6 @@ pub fn check_owner(ctx: Context<CheckOwner>, expected_owner: Pubkey) -> ProgramR
     }
 
 ```
-//TODO: another example
 
 Mitigation Strategies:
 
@@ -84,5 +79,67 @@ Mitigation Strategies:
 
 In summary, the missing owner check vulnerability in Solana Anchor can lead to unauthorized access and manipulation of accounts, potentially resulting in financial loss and compromised security. Implementing proper owner validation, following access control best practices, and conducting thorough testing and code reviews are essential to mitigate this vulnerability.
 
-Challenge: 
-//TODO
+### Let's understand this with example
+Consider the following code where user is allowed to update the value. 
+initialize function allows to set the the value of the data of the account my_account
+update function allows user to update the value of the data
+
+```rust
+use anchor_lang::prelude::*;
+
+declare_id!("9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n");
+
+#[program]
+pub mod missing_signer {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = 0; 
+        Ok(())
+    }
+
+    pub fn update(ctx: Context<Update>, data: u32) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = data; 
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+    user: Signer<'info>,
+    system_program: SystemProgram<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Update<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+}
+
+#[account]
+pub struct MyAccount {
+    data: u32,
+}
+```
+
+Let's check the results after running the test:
+```
+ownership-check
+  ✔ Is Initialize (80ms)
+  ✔ update the value  (45ms)
+```
+
+Now let's update the code with secure measures:
+```rust
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(constraint = user.key == &my_account.owner)]
+    my_account: AccountInfo<'info, MyAccount>,
+    user: Signer<'info>,
+    system_program: SystemProgram<'info>,
+}
+```
+
+You can check the code HERE
