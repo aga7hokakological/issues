@@ -160,5 +160,71 @@ In Solana Anchor, both `AccountInfo` and `Signer` are types used to represent ac
 
 In summary, `AccountInfo` is used for general account data access and manipulation, while `Signer` is specifically used to represent an authorized account to sign transactions. Using `Signer` in Anchor simplifies the process of checking signer authorization, as it is handled automatically by the framework.
 
-Challenge:
-// TODO
+### Let's understand this with example
+Consider the following code where the user is allowed to update the value 
+The initialize function allows to initialize the account. As for the update function only the user who has deployed the code should be able to run it 
+but without signer check anyone can update that value.
+
+```rust
+use anchor_lang::prelude::*;
+
+declare_id!("9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n");
+
+#[program]
+pub mod missing_signer {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = 0; 
+        Ok(())
+    }
+
+    pub fn update(ctx: Context<Update>, data: u32) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = data; 
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+    user: AccountInfo<'info>,
+    system_program: SystemProgram<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Update<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+}
+
+#[account]
+pub struct MyAccount {
+    data: u32,
+}
+```
+
+Let's check the results after running the test
+```
+missing-signer
+  ✔ Is Initialize (80ms)
+  ✔ update the value  (45ms)
+```
+
+Now let's update the code with secure measures:
+```rust
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+    user: Signer<'info>,
+    system_program: SystemProgram<'info>,
+}
+```
+
+Let's test again:
+```
+Error: Signature verification failed
+```
+
+You can check the code HERE
