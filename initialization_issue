@@ -104,3 +104,81 @@ To avoid initialization issues:
 
 Initialization issues can lead to unintended behavior in Solana programs, so careful consideration of when and how state accounts are initialized is crucial. Properly managing state accounts and following the guidelines of the Anchor framework can help you avoid such issues and build robust and reliable Solana smart contracts.
 
+### Let's understand this with example
+
+Consider the same code with slight modification from the previous example with initialize function to initialize the values and update function to update the value. 
+Now here even with the security measures such as ownership check and signer authorization the user can re initialize the given initialize function again to set different value.
+Consider the example of any game where you start from level 0 and climb up to top by completing quests. What will happen if you're able to re-initialize your game with level 50.
+You'll be able to access advance weapons and spells which will be considered as hack as you gain advantage over others.
+Now here 
+```rust
+use anchor_lang::prelude::*;
+
+declare_id!("9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n");
+
+#[program]
+pub mod missing_signer {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>, data: u32) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = data; 
+        Ok(())
+    }
+
+    pub fn update(ctx: Context<Update>, data: u32) -> Result<()> {
+        let my_account = &mut ctx.accounts.my_account;
+        my_account.data = data;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(constraint = user.key == &my_account.owner)]
+    my_account: AccountInfo<'info, MyAccount>,
+    user: Signer<'info>,
+    system_program: SystemProgram<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Update<'info> {
+    my_account: AccountInfo<'info, MyAccount>,
+}
+
+#[account]
+pub struct MyAccount {
+    data: u32,
+}
+```
+
+Let's check the results after running the test:
+```
+initialization-issue
+    ✔ Is Initialize (85ms)
+    ✔ Reinitialize the account data with different value  (55ms)
+```
+
+Now let's update the code with secure measures:
+```
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, constraint = user.key == &my_account.owner)]
+    my_account: AccountInfo<'info, MyAccount>,
+    user: Signer<'info>,
+    system_program: SystemProgram<'info>,
+}
+```
+
+Let's test again:
+```
+'Program 9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n invoke [1]',
+'Program log: Instruction: Update',
+'Program 11111111111111111111111111111111 invoke [2]',
+'Allocate: account Address { address: EMv9b9Ms4VTR7G1sNUJuQtvRX1EuvLhvVdEFqrtDcCGV, base: None } already in use',
+'Program 11111111111111111111111111111111 failed: custom program error: 0x0',
+'Program 9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n consumed 4018 of 200000 compute units',
+'Program 9b9M3AMGMM2yE9P9WgDfyvXqrBvnfcrjAcVvdETymb6n failed: custom program error: 0x0'
+```
+
+You can check the code HERE
