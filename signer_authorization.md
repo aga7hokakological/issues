@@ -1,9 +1,5 @@
 SIGNER AUTHORIZATION:
 
-//TODO: Proper formatting
-
-//TODO: Adding github code link
-
 Solana Anchor provides a simplified and convenient way to handle signer authorization in your Solana programs. Signer authorization ensures that only authorized accounts can execute specific instructions within your program. In Solana, instructions are equivalent to transactions, and signer authorization is a critical security feature to prevent unauthorized access and actions on the blockchain.
 
 Here's how Solana Anchor's signer authorization works:
