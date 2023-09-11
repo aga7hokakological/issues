@@ -1,9 +1,5 @@
 INSUFFICIENT SPL:
 
-//TODO: Proper formatting
-
-//TODO: Adding github code link & tests
-
 The insufficient SPL token verification vulnerability refers to a security issue that can occur in Solana Anchor programs when transferring or handling tokens using the Solana Program Library (SPL) token program. This vulnerability arises when the program does not adequately verify certain conditions before performing token transfers, which could potentially lead to unauthorized or unintended token movements. It's important to understand and address this vulnerability to ensure the security of your Solana Anchor programs.
 
 Here's a breakdown of the issue and its potential impact:
@@ -140,7 +136,81 @@ We can add check for balance of user which will eliminate the issue check of the
     }
 ```
 
+#[account(token::mint = <target_account>, token::authority = <target_account>)] this is an SPL constraint used to verify SPL accounts more conveniently.
 
+In the example below you can see that the lp tokens are burned and original tokens are sent back to the user in withdraw functionality. But you can see that `lp_burned_tokens` is not constrained in any ways which allows malicious user to pass other user's lp and mentioning `withdraw_account` as his own.
+```rust
+#[derive(Accounts)]
+pub struct Withdraw<'info> {
+    ...
+    #[account(mut)]
+    pub lp_burned_tokens: AccountInfo<'info>,
+    #[account(mut)]
+    pub withdraw_account: AccountInfo<'info>
+}
+
+impl<'info>Withdraw<'info> {
+    pub fn transfer_context(&self) -> CpiContext<'_,'_, '_, 'info, Transfer<'info>> {
+        CpiContext::new(
+            self.token_program.clone(),
+            Transfer {
+                from: ...
+                to: ...
+                authority: ...
+            }
+        )
+    }
+
+    pub fn lp_burn_context(&self) -> CpiContext<'_,'_, '_, 'info, Burn<'info>> {
+        CpiContext::new(
+            self.token_program.clone(),
+            Burn{
+                to: ...
+                mint: ...
+                authority: ...
+            }
+        )
+    }
+}
+```
+
+- Do not set ATA as owner otherwise it'll be impossible to recover tokens and tokens will be lost forever. The reason is that an ATA is a PDA (i.e., program-derived account), and does not have a corresponding private key to sign.
+```rust
+#[account]
+pub fn AccountData {
+    pub owner: Pubkey,
+    pub token_account: Pubkey,
+    pub value: u64,
+}
+
+...
+pub fn creat_account(ctx: Context<CreateAccount>, owner: Pubkey) -> Result<()> {
+    ...
+}
+...
+```
+
+- Do Not Validate an Associated Token Account Only By Owner and Mint
+If you validate an associate token account by only owner/mint rather than using get_associated_token_address, an unexpected token account may be allowed to pass in, which may mess with your protocol
+It is not sufficient to validate an associated token account by only owner and mint. For example, in Anchor account validation, using the following constraints (instead of get_associated_token_address):
+```rust
+#[account(mut,
+    constraint = escrow_ata.owner == escrow.key(),
+    constraint = escrow_ata.mint == escrow.mint
+)]    
+pub vault_ata: Box<Account<'info, TokenAccount>>,
+```
+The above only validates escrow_ata’s owner is escrow and it has the same mint as escrow.mint, but escrow_ata may not be an ATA at all.
+
+An attacker may pass in an arbitrary token account (set its owner and mint to escrow.key() and escrow.mint respectively), and pass the validation. Depending on the protocol logic, the fake ATA passed in may cause security issues.
+
+To validate ATA, use get_associated_token_address:
+```rust
+#[account(mut,
+    address = get_associated_token_address(&escrow.key(), &escrow.mint)
+)]
+pub escrow_ata: Box<Account<'info, TokenAccount>>,
+```
 
 To avoid this vulnerability, it's crucial to perform proper token verification by:
 
