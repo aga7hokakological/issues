@@ -48,7 +48,8 @@ pub struct SetPassword<'info> {
 pub struct User {
     pub password: String,
 }
-
+```
+```rust
 use anchor_lang::prelude::*;
 use store_password::cpi::accounts::SetPassword;
 use anchor_lang::solana_program::{instruction::Instruction, program::invoke};
