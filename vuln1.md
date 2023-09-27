@@ -3,6 +3,7 @@
     Maybe I can if you don't want to
 */ 
 
+```rust
 use anchor_lang::prelude::*;
 
 declare_id!("CeURMdWWbKoJe9BRvK1brgMik2EFrp1eB33SXWeA7pyW");
@@ -74,3 +75,4 @@ pub struct User {
     pub reward_debt: u64,
     pub deposit_time: u64
 }
+```
